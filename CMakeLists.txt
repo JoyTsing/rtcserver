@@ -10,7 +10,8 @@ add_definitions("-g -pipe -W -Wall -fPIC -std=gnu++14 -DWEBRTC_POSIX
 PROJECT(rtcserver LANGUAGES CXX)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/third_party/rtcbase/src)
 
-add_subdirectory(./third_party)
+#add_subdirectory(./third_party)
 
 add_subdirectory(./src)
