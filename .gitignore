@@ -41,3 +41,4 @@ build/
 .vscode/
 log/
 third_party/
+third_party/yaml-cpp/
