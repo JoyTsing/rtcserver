@@ -9,6 +9,8 @@ add_definitions("-g -pipe -W -Wall -fPIC -std=gnu++14 -DWEBRTC_POSIX
 
 PROJECT(rtcserver LANGUAGES CXX)
 
-file(GLOB add_src "./src/*.cpp")
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
-add_executable(rtcserver ${add_src})
+add_subdirectory(./third_party)
+
+add_subdirectory(./src)
