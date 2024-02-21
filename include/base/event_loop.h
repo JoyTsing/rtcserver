@@ -37,7 +37,7 @@ class EventLoop {
       public:
         IOWatcher(EventLoop *el, io_callback_t call, void *data)
             : event_loop(el), call(call), data(data) {
-            io = new ev_io;
+            io = new ev_io{};
             io->data = this;
         }
 
@@ -77,8 +77,8 @@ class EventLoop {
     explicit EventLoop(void *owner);
     ~EventLoop();
 
-    void start();
-    void stop();
+    void Start();
+    void Stop();
 
     IOWatcher *CreateIoEvent(io_callback_t call, void *data);
     void StartIOEvent(IOWatcher *w, int fd, int mask);

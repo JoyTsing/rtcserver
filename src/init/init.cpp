@@ -45,6 +45,41 @@ int init_log(std::string log_dir, std::string log_name, std::string log_level) {
 
 int init_signaling_server(const std::string &conf_file) {
     g_signaling_server = new SignalingServer();
-    return g_signaling_server->init(conf_file);
+    return g_signaling_server->Init(conf_file);
+}
+
+// init all
+bool server_init() {
+    if (xrtc::init_general_conf("./conf/general.yaml") != 0) { return false; }
+
+    if (xrtc::init_log(
+            xrtc::g_conf->log_dir, xrtc::g_conf->log_name,
+            xrtc::g_conf->log_level)
+        != 0) {
+        return false;
+    }
+    if (xrtc::init_signaling_server("./conf/signaling_server.yaml") != 0) {
+        return false;
+    }
+    xrtc::g_signaling_server->Start();
+    return true;
+}
+
+bool server_init_test() {
+    if (xrtc::init_general_conf("../../conf/general.yaml") != 0) {
+        return false;
+    }
+
+    if (xrtc::init_log(
+            xrtc::g_conf->log_dir, xrtc::g_conf->log_name,
+            xrtc::g_conf->log_level)
+        != 0) {
+        return false;
+    }
+    if (xrtc::init_signaling_server("../../conf/signaling_server.yaml") != 0) {
+        return false;
+    }
+    xrtc::g_signaling_server->Start();
+    return true;
 }
 } // namespace xrtc

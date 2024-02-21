@@ -5,6 +5,9 @@
 
 namespace xrtc {
 
+bool server_init();
+bool server_init_test();
+
 // TODO singleton
 extern GeneralConf *g_conf;
 extern Log *g_logger;

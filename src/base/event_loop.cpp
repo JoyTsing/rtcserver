@@ -26,27 +26,27 @@ int trans_from_libev(int event) {
     return 0;
 }
 
-EventLoop::EventLoop(void *owner) : owner(owner) {
-    _loop = ev_loop_new(EVFLAG_AUTO);
+EventLoop::EventLoop(void *owner)
+    : _loop(ev_loop_new(EVFLAG_AUTO)), owner(owner) {
 }
 
 EventLoop::~EventLoop() {
-    ev_loop_destroy(_loop);
 }
 
-void EventLoop::start() {
+void EventLoop::Start() {
     ev_run(_loop);
 }
 
-void EventLoop::stop() {
+void EventLoop::Stop() {
     ev_break(_loop, EVBREAK_ALL);
 }
 
 void EventLoop::generic_io_callback(
     struct ev_loop * /*loop*/, struct ev_io *w, int events) {
-    auto *watcher = (IOWatcher *)w->data;
+    auto *watcher = (IOWatcher *)(w->data);
     watcher->call(
-        watcher->event_loop, watcher, w->fd, trans_from_libev(events), w->data);
+        watcher->event_loop, watcher, w->fd, trans_from_libev(events),
+        watcher->data); // 之前传入的是w->data，运行没有问题但是结束时候有问题
 }
 
 void EventLoop::generic_time_callback(
