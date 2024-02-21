@@ -16,7 +16,6 @@ list(REMOVE_ITEM  all_src ${PROJECT_SOURCE_DIR}/src/main.cpp)
 
 foreach(v ${all_tests})
     string(REGEX MATCH "test/.*" relative_path ${v})
-    message(${relative_path})
     string(REGEX REPLACE "test/" "" target_name ${relative_path})
     string(REGEX REPLACE ".cpp" "" target_name ${target_name})
 

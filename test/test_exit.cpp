@@ -18,11 +18,11 @@ void test_exit() {
         xrtc::g_signaling_server->Stop();
     });
     t->detach();
+    xrtc::g_signaling_server->Join();
 }
 
 int main() {
     RTC_LOG(LS_INFO) << "==== In TEST ====";
     test_exit();
-    xrtc::g_signaling_server->Join();
     return 0;
 }
