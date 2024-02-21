@@ -142,7 +142,7 @@ void Log::LogToStreamWarn(std::ofstream &stream) {
     std::stringstream ss;
 
     {
-        std::unique_lock<std::mutex> lock(_mtx);
+        std::unique_lock<std::mutex> lock(_mtx_warn);
         if (_log_warn_queue.empty()) { return; }
         while (!_log_warn_queue.empty()) {
             ss << _log_warn_queue.front();

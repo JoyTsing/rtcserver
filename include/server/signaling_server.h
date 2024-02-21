@@ -18,6 +18,8 @@ class SignalingServer {
 
   private:
     SignalingServerOptions _options;
+
+    int _listen_fd = -1;
 };
 
 } // namespace xrtc

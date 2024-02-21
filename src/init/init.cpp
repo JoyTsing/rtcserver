@@ -43,8 +43,8 @@ int init_log(std::string log_dir, std::string log_name, std::string log_level) {
     return 0;
 }
 
-int init_signaling_server() {
+int init_signaling_server(const std::string &conf_file) {
     g_signaling_server = new SignalingServer();
-    return g_signaling_server->init("./conf/signaling_server.yaml");
+    return g_signaling_server->init(conf_file);
 }
 } // namespace xrtc
