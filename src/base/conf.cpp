@@ -3,21 +3,21 @@
 #include <cstdio>
 #include <yaml-cpp/yaml.h>
 namespace xrtc {
-int load_general_conf(const std::string &filename, GeneralConf *conf) {
-    if (filename.empty() || conf == nullptr) {
+int load_general_conf(const std::string &filename, GeneralConf *confs) {
+    if (filename.empty() || confs == nullptr) {
         (void)fprintf(stderr, "filename or conf is nullptr\n");
         return -1;
     }
-    conf->log_dir = "./log";
-    conf->log_name = filename;
-    conf->log_level = "info";
-    conf->log_to_stderr = true;
+    confs->log_dir = "./log";
+    confs->log_name = filename;
+    confs->log_level = "info";
+    confs->log_to_stderr = true;
     YAML::Node config = YAML::LoadFile(filename);
     try {
-        conf->log_dir = config["log"]["log_dir"].as<std::string>();
-        conf->log_name = config["log"]["log_name"].as<std::string>();
-        conf->log_level = config["log"]["log_level"].as<std::string>();
-        conf->log_to_stderr = config["log"]["log_to_stderr"].as<bool>();
+        confs->log_dir = config["log"]["log_dir"].as<std::string>();
+        confs->log_name = config["log"]["log_name"].as<std::string>();
+        confs->log_level = config["log"]["log_level"].as<std::string>();
+        confs->log_to_stderr = config["log"]["log_to_stderr"].as<bool>();
     } catch (YAML::Exception &e) {
         (void)fprintf(
             stderr, "YAML::Exception line : %d,column: %d, error:%s\n",
