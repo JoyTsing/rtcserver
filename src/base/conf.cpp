@@ -1,5 +1,4 @@
 #include "base/conf.h"
-#include "yaml-cpp/exceptions.h"
 #include <cstdio>
 #include <yaml-cpp/yaml.h>
 namespace xrtc {
@@ -8,10 +7,6 @@ int load_general_conf(const std::string &filename, GeneralConf *confs) {
         (void)fprintf(stderr, "filename or conf is nullptr\n");
         return -1;
     }
-    confs->log_dir = "./log";
-    confs->log_name = filename;
-    confs->log_level = "info";
-    confs->log_to_stderr = true;
     YAML::Node config = YAML::LoadFile(filename);
     try {
         confs->log_dir = config["log"]["log_dir"].as<std::string>();

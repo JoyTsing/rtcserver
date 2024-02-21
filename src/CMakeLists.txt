@@ -11,6 +11,6 @@ link_directories(
 
 file(GLOB_RECURSE all_src CONFIGURE_DEPENDS *.cpp)
 
-add_executable(xrtcserver ${all_src})
+add_executable(rtcserver ${all_src})
 
-target_link_libraries(xrtcserver libyaml-cpp.a  libabsl_strings.a libabsl_throw_delegate.a librtcbase.a)
+target_link_libraries(rtcserver libyaml-cpp.a  libabsl_strings.a libabsl_throw_delegate.a librtcbase.a)

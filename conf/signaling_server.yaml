@@ -1,0 +1,6 @@
+server:
+  server_host: 127.0.0.1
+  server_port: 9000
+  worker_num: 6
+  #ms
+  connect_timeout: 3000

@@ -28,7 +28,7 @@ Log::~Log() {
 int Log::init() {
     // set log
     rtc::LogMessage::ConfigureLogging("thread tstamp");
-    rtc::LogMessage::SetLogPathPrefix("/rtcserver");
+    rtc::LogMessage::SetLogPathPrefix("/src");
     rtc::LogMessage::AddLogToStream(this, GetLogSeverity(_log_level));
     // file
     int ret = mkdir(_log_dir.c_str(), 0755);
@@ -63,7 +63,7 @@ void Log::OnLogMessage(
 }
 
 void Log::OnLogMessage(const std::string & /*message*/) {
-    throw std::runtime_error("OnLogMessage not implemented");
+    throw std::runtime_error("OnLogMessage not need to implement");
 }
 
 void Log::SetLogToStderr(bool on) {
