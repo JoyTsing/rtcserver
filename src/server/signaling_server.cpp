@@ -13,6 +13,13 @@ SignalingServer::SignalingServer() : _event_loop(new EventLoop(this)) {
 }
 
 SignalingServer::~SignalingServer() {
+    delete _thread;
+    _thread = nullptr;
+    delete _event_loop;
+    _event_loop = nullptr;
+
+    for (auto &worker : _workers) { delete worker; }
+    _workers.clear();
 }
 
 bool SignalingServer::CreateWorker(int i) {
@@ -26,6 +33,7 @@ bool SignalingServer::CreateWorker(int i) {
         RTC_LOG(LS_WARNING) << "worker start failed, worker_id:" << i;
         return false;
     }
+    _workers.emplace_back(worker);
     return true;
 }
 
@@ -45,6 +53,7 @@ void SignalingServer::StopEvent() {
         RTC_LOG(LS_WARNING) << "signaling server has already stopped";
         return;
     }
+    RTC_LOG(LS_INFO) << "signaling server start stop";
     _event_loop->DeleteIOEvent(_pipe_watcher);
     _event_loop->DeleteIOEvent(_io_watcher);
     _event_loop->Stop();
@@ -52,7 +61,13 @@ void SignalingServer::StopEvent() {
     close(_notify_recv_fd);
     close(_notify_send_fd);
     close(_listen_fd);
-    RTC_LOG(LS_INFO) << "signaling server stop";
+    for (auto &worker : _workers) {
+        if (worker) {
+            worker->Stop();
+            worker->Join();
+            delete worker;
+        }
+    }
 }
 
 void SignalingServer::AcceptNewConnection(
