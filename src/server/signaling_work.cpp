@@ -2,8 +2,10 @@
 #include "base/event_loop.h"
 #include "net/socket.h"
 #include "net/tcp_connection.h"
+#include "net/tcp_head.h"
 #include "rtc_base/sds.h"
 #include <rtc_base/logging.h>
+#include "rtc_base/slice.h"
 #include <unistd.h>
 namespace xrtc {
 SignalingWorker::SignalingWorker(int worker_id)
@@ -81,27 +83,25 @@ void SignalingWorker::ConnectIOCall(
 }
 
 void SignalingWorker::ReadEvent(int fd) {
-    RTC_LOG(LS_INFO) << "worker read event, worker_id:" << _worker_id
-                     << ", fd:" << fd;
     if (fd < 0) {
         RTC_LOG(LS_WARNING) << "invalid fd: " << fd;
         return;
     }
     TcpConnection *conn = _conn_pool[fd];
     // 36 byte header
-    int read_len = conn->kHeadBytes;
+    size_t read_len = conn->expected_bytes;
     int buf_len = sdslen(conn->read_buf);
     conn->read_buf = sdsMakeRoomFor(conn->read_buf, read_len);
-
     // read
     ssize_t nread = SocketReadData(fd, conn->read_buf + buf_len, read_len);
 
+    RTC_LOG(LS_INFO) << "socket read event ,len " << nread;
     if (nread < 0) {
         RTC_LOG(LS_WARNING) << "read failed, fd:" << fd;
         return;
     }
     if (nread > 0) { sdsIncrLen(conn->read_buf, nread); }
-    RTC_LOG(LS_INFO) << "sock read data,len:" << nread;
+    if (!ProcessReadBuffer(conn)) { return; }
 }
 
 void SignalingWorker::HandleNotify(ssize_t msg) {
@@ -114,6 +114,42 @@ void SignalingWorker::HandleNotify(ssize_t msg) {
         if (_conn_queue.Consume(conn_fd)) { NewConnection(conn_fd); }
         return;
     }
+}
+
+bool SignalingWorker::ProcessReadBuffer(TcpConnection *conn) {
+    while (sdslen(conn->read_buf)
+           >= conn->process_bytes + conn->expected_bytes) {
+        auto *head = (tcp_head_t *)conn->read_buf;
+        if (TcpConnection::STATE_HEAD == conn->current_state) {
+            // check sum
+            if (kHeadMagicNum != head->magic_num) {
+                RTC_LOG(LS_WARNING) << "invalid data";
+                return false;
+            }
+            conn->current_state = TcpConnection::STATE_BODY;
+            conn->process_bytes += kHeadSize;
+            conn->expected_bytes = head->body_len;
+        } else {
+            rtc::Slice header(conn->read_buf, kHeadSize);
+            rtc::Slice body(conn->read_buf + kHeadSize, head->body_len);
+
+            if (!ProcessRequest(conn, header, body)) {
+                RTC_LOG(LS_WARNING) << "process request failed";
+                return false;
+            }
+
+            // 短连接忽略后续
+            conn->process_bytes = 65535;
+        }
+    }
+    return true;
+}
+
+bool SignalingWorker::ProcessRequest(
+    TcpConnection *conn, const rtc::Slice &head, const rtc::Slice &body) {
+    RTC_LOG(LS_INFO) << "process request, worker_id:" << _worker_id
+                     << "body: " << body.data();
+    return true;
 }
 
 void SignalingWorker::StopEvent() {

@@ -2,7 +2,9 @@
 #include "base/event_loop.h"
 #include "base/lock_free_queue.h"
 #include "net/tcp_connection.h"
+#include "rtc_base/slice.h"
 #include <thread>
+#include <unistd.h>
 #include <unordered_map>
 
 namespace xrtc {
@@ -35,6 +37,10 @@ class SignalingWorker {
     void NewConnection(int fd);
     // event
     void ReadEvent(int fd);
+    bool ProcessRequest(
+        TcpConnection *conn, const rtc::Slice &head, const rtc::Slice &body);
+    // net
+    bool ProcessReadBuffer(TcpConnection *conn);
 
   private:
     int _worker_id;

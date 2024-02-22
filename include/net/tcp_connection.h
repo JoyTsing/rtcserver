@@ -6,6 +6,11 @@
 
 namespace xrtc {
 struct TcpConnection {
+    enum {
+        STATE_HEAD,
+        STATE_BODY,
+    };
+
     explicit TcpConnection(int sock);
     ~TcpConnection();
 
@@ -13,11 +18,11 @@ struct TcpConnection {
     std::string addr;
     int port;
     EventLoop::IOWatcher *io_watcher = nullptr;
+    int current_state = STATE_HEAD;
 
+    size_t expected_bytes;
+    size_t process_bytes;
     // buf
     sds read_buf;
-    size_t process_bytes = 0;
-    // const
-    const size_t kHeadBytes = kHeadSize;
 };
 } // namespace xrtc
