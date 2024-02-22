@@ -1,10 +1,14 @@
 #include "server/signaling_work.h"
 #include "base/event_loop.h"
+#include "net/socket.h"
 #include "net/tcp_connection.h"
+#include "rtc_base/sds.h"
 #include <rtc_base/logging.h>
+#include <unistd.h>
 namespace xrtc {
 SignalingWorker::SignalingWorker(int worker_id)
     : _worker_id(worker_id), _event_loop(new EventLoop(this)) {
+    _conn_pool = {};
 }
 
 SignalingWorker::~SignalingWorker() {
@@ -79,6 +83,25 @@ void SignalingWorker::ConnectIOCall(
 void SignalingWorker::ReadEvent(int fd) {
     RTC_LOG(LS_INFO) << "worker read event, worker_id:" << _worker_id
                      << ", fd:" << fd;
+    if (fd < 0) {
+        RTC_LOG(LS_WARNING) << "invalid fd: " << fd;
+        return;
+    }
+    TcpConnection *conn = _conn_pool[fd];
+    // 36 byte header
+    int read_len = conn->kHeadBytes;
+    int buf_len = sdslen(conn->read_buf);
+    conn->read_buf = sdsMakeRoomFor(conn->read_buf, read_len);
+
+    // read
+    ssize_t nread = SocketReadData(fd, conn->read_buf + buf_len, read_len);
+
+    if (nread < 0) {
+        RTC_LOG(LS_WARNING) << "read failed, fd:" << fd;
+        return;
+    }
+    if (nread > 0) { sdsIncrLen(conn->read_buf, nread); }
+    RTC_LOG(LS_INFO) << "sock read data,len:" << nread;
 }
 
 void SignalingWorker::HandleNotify(ssize_t msg) {
@@ -117,7 +140,7 @@ void SignalingWorker::NewConnection(int fd) {
     }
 
     auto *conn = new TcpConnection(fd);
-    conn->io_watcher = _event_loop->CreateIoEvent(ConnectIOCall, conn);
+    conn->io_watcher = _event_loop->CreateIoEvent(ConnectIOCall, this);
     _event_loop->StartIOEvent(conn->io_watcher, fd, EventLoop::READ);
     _conn_pool[fd] = conn;
 }

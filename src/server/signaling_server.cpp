@@ -156,7 +156,7 @@ bool SignalingServer::Start() {
         return false;
     }
     _thread = new std::thread([=]() {
-        RTC_LOG(LS_INFO) << "signaling server start";
+        RTC_LOG(LS_INFO) << "===>signaling server start";
         _event_loop->Start();
         RTC_LOG(LS_INFO) << "exit from server event loop";
     });

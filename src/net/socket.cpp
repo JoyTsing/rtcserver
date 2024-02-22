@@ -126,5 +126,18 @@ bool SockPeerAddr(int sock, std::string &addr, int &port) {
     port = ntohs(client_addr.sin_port);
     return true;
 }
+ssize_t SocketReadData(int sock, char *buf, size_t len) {
+    ssize_t nread = read(sock, buf, len);
+    if (nread == 0) {
+        RTC_LOG(LS_WARNING) << "peer connection closed,fd: " << sock;
+        return -1;
+    }
+    if (nread < 0 && errno != EAGAIN) {
+        RTC_LOG(LS_WARNING) << "socket read failed, error:" << errno;
+        return -1;
+    }
+    if (nread < 0 && errno == EAGAIN) { nread = 0; }
+    return nread;
+}
 
 } // namespace xrtc

@@ -43,7 +43,7 @@ class SignalingWorker {
     // communicate with main thread
     int _notify_recv_fd = -1;
     int _notify_send_fd = -1;
-    std::unordered_map<int, TcpConnection *> _conn_pool{};
+    std::unordered_map<int, TcpConnection *> _conn_pool;
     IOWatcher *_pipe_watcher = nullptr;
     // thread
     std::thread *_thread = nullptr;
