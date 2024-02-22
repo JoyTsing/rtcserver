@@ -30,16 +30,17 @@ class SignalingServer {
     bool Notify(ssize_t msg);
     void Join();
 
-  public:
+  private:
     static void AcceptNewConnection(
         EventLoop *el, IOWatcher *w, int fd, int events, void *data);
     static void ServerRecvNotify(
         EventLoop *el, IOWatcher *w, int fd, int events, void *data);
 
   private:
+    void StopEvent();
     bool CreateWorker(int i);
     void HandleNotify(ssize_t msg);
-    void StopEvent();
+    void DispatchConnection(int conn_fd);
 
   private:
     SignalingServerOptions _options;
@@ -48,6 +49,7 @@ class SignalingServer {
     IOWatcher *_pipe_watcher = nullptr;
     // net
     int _listen_fd = -1;
+    int _next_worker_index = 0;
     // control event
     int _notify_recv_fd = -1;
     int _notify_send_fd = -1;

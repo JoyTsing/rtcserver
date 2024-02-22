@@ -7,6 +7,11 @@ SignalingWorker::SignalingWorker(int worker_id)
 }
 
 SignalingWorker::~SignalingWorker() {
+    delete _event_loop;
+    _event_loop = nullptr;
+
+    delete _thread;
+    _thread = nullptr;
 }
 
 bool SignalingWorker::Init() {
@@ -47,6 +52,10 @@ bool SignalingWorker::Notify(ssize_t msg) {
     ssize_t write_len = write(_notify_send_fd, &msg, sizeof(msg));
     return write_len == sizeof(msg);
 }
+bool SignalingWorker::NotifyNewConnection(int fd) {
+    _conn_queue.Produce(fd);
+    return Notify(SignalingWorker::NEW_CONNECTION);
+}
 
 void SignalingWorker::WorkerRecvNotify(
     EventLoop * /*el*/, IOWatcher * /*w*/, int fd, int /*events*/, void *data) {
@@ -64,6 +73,11 @@ void SignalingWorker::HandleNotify(ssize_t msg) {
         StopEvent();
         return;
     }
+    if (msg == SignalingWorker::NEW_CONNECTION) {
+        int conn_fd;
+        if (_conn_queue.Consume(conn_fd)) { NewConnection(conn_fd); }
+        return;
+    }
 }
 
 void SignalingWorker::StopEvent() {
@@ -79,6 +93,11 @@ void SignalingWorker::StopEvent() {
     close(_notify_send_fd);
 
     RTC_LOG(LS_INFO) << "signaling worker stop";
+}
+
+void SignalingWorker::NewConnection(int fd) {
+    RTC_LOG(LS_INFO) << "new connection, worker_id:" << _worker_id
+                     << ", fd:" << fd;
 }
 
 void SignalingWorker::Join() {

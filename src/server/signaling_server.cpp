@@ -71,7 +71,24 @@ void SignalingServer::StopEvent() {
 }
 
 void SignalingServer::AcceptNewConnection(
-    EventLoop *el, IOWatcher *w, int fd, int events, void *data) {
+    EventLoop * /*el*/, IOWatcher * /*w*/, int fd, int /*events*/, void *data) {
+    auto *server = (SignalingServer *)data;
+    auto *client_ip = new std::string();
+    int conn_fd, conn_port;
+    conn_fd = TCPAccept(fd, client_ip, &conn_port);
+    if (conn_fd < 0) {
+        RTC_LOG(LS_WARNING) << "accept new connection failed";
+        return;
+    }
+    RTC_LOG(LS_INFO) << "accept new connection, fd:" << conn_fd
+                     << ", ip:" << client_ip->data() << ", port:" << conn_port;
+    server->DispatchConnection(conn_fd);
+}
+
+void SignalingServer::DispatchConnection(int conn_fd) {
+    int index = _next_worker_index++;
+    if (_next_worker_index >= _options.worker_num) { _next_worker_index = 0; }
+    _workers[index]->NotifyNewConnection(conn_fd);
 }
 
 void SignalingServer::ServerRecvNotify(

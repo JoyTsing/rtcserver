@@ -1,10 +1,15 @@
 #include "net/socket.h"
 #include "rtc_base/logging.h"
 #include <arpa/inet.h>
+#include <mutex>
 #include <sys/socket.h>
 #include <unistd.h>
 
 namespace xrtc {
+namespace {
+    std::mutex __net_mutex;
+} // namespace
+
 int CreateTcpServer(const std::string &addr, int port) {
     // create
     int socket = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -42,5 +47,36 @@ int CreateTcpServer(const std::string &addr, int port) {
         return -1;
     }
     return socket;
+}
+
+int TCPAccept(int sock, std::string *addr, int *port) {
+    struct sockaddr_in client_addr;
+    socklen_t len = sizeof(client_addr);
+    int client_sock = Accept(sock, (struct sockaddr *)&client_addr, &len);
+    if (client_sock < 0) {
+        RTC_LOG(LS_WARNING) << "TCP Accept failed, error:" << errno;
+        return -1;
+    }
+    {
+        std::unique_lock<std::mutex> lock(__net_mutex);
+        strcpy(addr->data(), inet_ntoa(client_addr.sin_addr));
+    }
+    *port = ntohs(client_addr.sin_port);
+
+    return client_sock;
+}
+
+int Accept(int sock, struct sockaddr *sa, socklen_t *len) {
+    int fd = -1;
+    while (true) {
+        fd = accept(sock, sa, (socklen_t *)len);
+        if (fd < 0) {
+            if (errno == EINTR) { continue; } // interrupted by signal
+            RTC_LOG(LS_WARNING) << "accept failed, error:" << errno;
+            return -1;
+        }
+        break;
+    }
+    return fd;
 }
 } // namespace xrtc
