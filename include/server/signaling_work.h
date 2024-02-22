@@ -11,6 +11,7 @@ namespace xrtc {
 class SignalingWorker {
   public:
     using IOWatcher = EventLoop::IOWatcher;
+    using TimerWatcher = EventLoop::TimeWatcher;
     enum { QUIT, NEW_CONNECTION };
 
   public:
@@ -25,9 +26,14 @@ class SignalingWorker {
     bool Notify(ssize_t msg);
     bool NotifyNewConnection(int fd);
 
+    // timer
+    void SetTimeOut(uint64_t usec);
+
   private:
     static void
     ConnectIOCall(EventLoop *el, IOWatcher *w, int fd, int events, void *data);
+    static void ConnectTimeCall(EventLoop *el, TimerWatcher *w, void *data);
+
     static void WorkerRecvNotify(
         EventLoop *el, IOWatcher *w, int fd, int events, void *data);
 
@@ -40,10 +46,19 @@ class SignalingWorker {
     bool ProcessRequest(
         TcpConnection *conn, const rtc::Slice &head, const rtc::Slice &body);
     // net
+    void CloseConnection(TcpConnection *conn);
+    void RemoveConnection(TcpConnection *conn);
+
+    // msg
     bool ProcessReadBuffer(TcpConnection *conn);
 
+    void ProcessTimeout(TcpConnection *conn);
+
   private:
+    // option
     int _worker_id;
+    unsigned long _timeout;
+
     EventLoop *_event_loop = nullptr;
     LockFreeQueue<int> _conn_queue;
     // communicate with main thread

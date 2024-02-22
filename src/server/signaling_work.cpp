@@ -4,8 +4,8 @@
 #include "net/tcp_connection.h"
 #include "net/tcp_head.h"
 #include "rtc_base/sds.h"
-#include <rtc_base/logging.h>
 #include "rtc_base/slice.h"
+#include <rtc_base/logging.h>
 #include <unistd.h>
 namespace xrtc {
 SignalingWorker::SignalingWorker(int worker_id)
@@ -76,6 +76,13 @@ void SignalingWorker::WorkerRecvNotify(
     worker->HandleNotify(msg);
 }
 
+void SignalingWorker::ConnectTimeCall(
+    EventLoop *el, TimerWatcher * /*w*/, void *data) {
+    auto *worker = (SignalingWorker *)(el->GetOwner());
+    auto *conn = (TcpConnection *)data;
+    worker->ProcessTimeout(conn);
+}
+
 void SignalingWorker::ConnectIOCall(
     EventLoop * /*el*/, IOWatcher * /*w*/, int fd, int events, void *data) {
     auto *worker = (SignalingWorker *)data;
@@ -94,14 +101,32 @@ void SignalingWorker::ReadEvent(int fd) {
     conn->read_buf = sdsMakeRoomFor(conn->read_buf, read_len);
     // read
     ssize_t nread = SocketReadData(fd, conn->read_buf + buf_len, read_len);
+    conn->last_interaction = _event_loop->Now();
 
-    RTC_LOG(LS_INFO) << "socket read event ,len " << nread;
     if (nread < 0) {
-        RTC_LOG(LS_WARNING) << "read failed, fd:" << fd;
+        CloseConnection(conn);
         return;
     }
     if (nread > 0) { sdsIncrLen(conn->read_buf, nread); }
-    if (!ProcessReadBuffer(conn)) { return; }
+    if (!ProcessReadBuffer(conn)) {
+        CloseConnection(conn);
+        return;
+    }
+    RTC_LOG(LS_INFO) << "socket read event ,len " << nread;
+}
+
+void SignalingWorker::RemoveConnection(TcpConnection *conn) {
+    _event_loop->DeleteTimerEvent(conn->time_watcher);
+    _event_loop->DeleteIOEvent(conn->io_watcher);
+    _conn_pool.erase(conn->socket);
+    delete conn;
+}
+
+void SignalingWorker::CloseConnection(TcpConnection *conn) {
+    RTC_LOG(LS_INFO) << "close connection, worker_id:" << _worker_id
+                     << ",fd:" << conn->socket;
+    close(conn->socket);
+    RemoveConnection(conn);
 }
 
 void SignalingWorker::HandleNotify(ssize_t msg) {
@@ -152,6 +177,13 @@ bool SignalingWorker::ProcessRequest(
     return true;
 }
 
+void SignalingWorker::ProcessTimeout(TcpConnection *conn) {
+    if (_event_loop->Now() - conn->last_interaction >= _timeout) {
+        RTC_LOG(LS_WARNING) << "connection timeout, worker_id:" << _worker_id;
+        CloseConnection(conn);
+    }
+}
+
 void SignalingWorker::StopEvent() {
     if (!_thread) {
         RTC_LOG(LS_WARNING)
@@ -177,12 +209,23 @@ void SignalingWorker::NewConnection(int fd) {
 
     auto *conn = new TcpConnection(fd);
     conn->io_watcher = _event_loop->CreateIoEvent(ConnectIOCall, this);
+    conn->time_watcher =
+        _event_loop->CreateTimerEvent(ConnectTimeCall, conn, true);
+
     _event_loop->StartIOEvent(conn->io_watcher, fd, EventLoop::READ);
+    _event_loop->StartTimerEvent(conn->time_watcher, 100 * 1e3); // 100ms
+
+    conn->last_interaction = _event_loop->Now();
+
     _conn_pool[fd] = conn;
 }
 
 void SignalingWorker::Join() {
     if (_thread && _thread->joinable()) { _thread->join(); }
+}
+
+void SignalingWorker::SetTimeOut(uint64_t usec) {
+    _timeout = usec;
 }
 
 } // namespace xrtc

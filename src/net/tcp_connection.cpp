@@ -7,6 +7,7 @@
 namespace xrtc {
 TcpConnection::TcpConnection(int sock)
     : socket(sock)
+    , last_interaction(0)
     , expected_bytes(kHeadSize)
     , process_bytes(0)
     , read_buf(sdsempty()) {

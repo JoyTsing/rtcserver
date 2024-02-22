@@ -2,5 +2,5 @@ server:
   host: 127.0.0.1
   port: 9009
   worker_num: 6
-  #ms
-  connection_timeout: 3000
+  #us
+  connection_timeout: 5000000

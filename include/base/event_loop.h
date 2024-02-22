@@ -2,6 +2,7 @@
 
 #include <libev/ev.h>
 #include <string>
+#include <cstdint>
 namespace xrtc {
 class EventLoop {
   public:
@@ -77,18 +78,24 @@ class EventLoop {
     explicit EventLoop(void *owner);
     ~EventLoop();
 
+    void *GetOwner() { return owner; }
+
     void Start();
     void Stop();
+
+    // time
+    uint64_t Now();
 
     IOWatcher *CreateIoEvent(io_callback_t call, void *data);
     void StartIOEvent(IOWatcher *w, int fd, int mask);
     void StopIOEvent(IOWatcher *w, int fd, int mask);
     void DeleteIOEvent(IOWatcher *w);
 
-    TimeWatcher *CreateTimer(time_callback_t call, void *data, bool repeate);
-    void StartTimer(TimeWatcher *w, unsigned int msec);
-    void StopTimer(TimeWatcher *w);
-    void DeleteTimer(TimeWatcher *w);
+    TimeWatcher *
+    CreateTimerEvent(time_callback_t call, void *data, bool repeate);
+    void StartTimerEvent(TimeWatcher *w, uint64_t usec);
+    void StopTimerEvent(TimeWatcher *w);
+    void DeleteTimerEvent(TimeWatcher *w);
 
   private:
     static void

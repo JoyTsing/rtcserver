@@ -1,4 +1,5 @@
 #include "base/event_loop.h"
+#include <cstdint>
 #include <libev/ev.h>
 namespace xrtc {
 
@@ -39,6 +40,10 @@ void EventLoop::Start() {
 
 void EventLoop::Stop() {
     ev_break(_loop, EVBREAK_ALL);
+}
+
+uint64_t EventLoop::Now() {
+    return static_cast<uint64_t>(ev_now(_loop) * 1000000);
 }
 
 void EventLoop::generic_io_callback(
@@ -102,16 +107,17 @@ void EventLoop::DeleteIOEvent(IOWatcher *w) {
 
 // time event
 EventLoop::TimeWatcher *
-EventLoop::CreateTimer(time_callback_t call, void *data, bool repeate) {
+EventLoop::CreateTimerEvent(time_callback_t call, void *data, bool repeate) {
     auto *watcher = new TimeWatcher(this, call, data, repeate);
     ev_init(watcher->timer, generic_time_callback);
     return watcher;
 }
 
-void EventLoop::StartTimer(TimeWatcher *w, unsigned int msec) {
+void EventLoop::StartTimerEvent(TimeWatcher *w, uint64_t usec) {
     struct ev_timer *timer = w->timer;
-    double sec = double(msec) / 1e6;
+    float sec = float(usec) / 1000000;
     if (!w->repeate) {
+        ev_timer_stop(_loop, timer);
         ev_timer_set(timer, sec, 0);
         ev_timer_start(_loop, timer);
         return;
@@ -120,13 +126,13 @@ void EventLoop::StartTimer(TimeWatcher *w, unsigned int msec) {
     ev_timer_again(_loop, timer);
 }
 
-void EventLoop::StopTimer(TimeWatcher *w) {
+void EventLoop::StopTimerEvent(TimeWatcher *w) {
     struct ev_timer *timer = w->timer;
     ev_timer_stop(_loop, timer);
 }
 
-void EventLoop::DeleteTimer(TimeWatcher *w) {
-    StopTimer(w);
+void EventLoop::DeleteTimerEvent(TimeWatcher *w) {
+    StopTimerEvent(w);
     delete w;
 }
 
