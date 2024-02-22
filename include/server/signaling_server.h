@@ -1,8 +1,10 @@
 #pragma once
 #include "base/event_loop.h"
+#include "server/signaling_work.h"
 #include <string>
 #include <thread>
 #include <unistd.h>
+#include <vector>
 
 namespace xrtc {
 
@@ -35,6 +37,7 @@ class SignalingServer {
         EventLoop *el, IOWatcher *w, int fd, int events, void *data);
 
   private:
+    bool CreateWorker(int i);
     void HandleNotify(ssize_t msg);
     void StopEvent();
 
@@ -48,6 +51,8 @@ class SignalingServer {
     // control event
     int _notify_recv_fd = -1;
     int _notify_send_fd = -1;
+    // worker
+    std::vector<SignalingWorker *> _workers;
     // thread
     std::thread *_thread = nullptr;
 };

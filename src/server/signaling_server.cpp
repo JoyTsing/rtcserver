@@ -14,6 +14,21 @@ SignalingServer::SignalingServer() : _event_loop(new EventLoop(this)) {
 
 SignalingServer::~SignalingServer() {
 }
+
+bool SignalingServer::CreateWorker(int i) {
+    auto *worker = new SignalingWorker(i);
+    RTC_LOG(LS_INFO) << "create worker, worker_id:" << i;
+    if (!worker->Init()) {
+        RTC_LOG(LS_WARNING) << "worker init failed, worker_id:" << i;
+        return false;
+    }
+    if (!worker->Start()) {
+        RTC_LOG(LS_WARNING) << "worker start failed, worker_id:" << i;
+        return false;
+    }
+    return true;
+}
+
 void SignalingServer::Join() {
     if (_thread && _thread->joinable()) { _thread->join(); }
 }
@@ -45,7 +60,7 @@ void SignalingServer::AcceptNewConnection(
 }
 
 void SignalingServer::ServerRecvNotify(
-    EventLoop *el, IOWatcher *w, int fd, int events, void *data) {
+    EventLoop * /*el*/, IOWatcher * /*w*/, int fd, int /*events*/, void *data) {
     ssize_t msg;
     if (read(fd, &msg, sizeof(msg)) != sizeof(msg)) {
         RTC_LOG(LS_WARNING) << "read notify msg failed";
@@ -86,9 +101,20 @@ int SignalingServer::Init(const std::string &conf_file) {
     _event_loop->StartIOEvent(_pipe_watcher, _notify_recv_fd, EventLoop::READ);
     // net
     _listen_fd = CreateTcpServer(_options.host, _options.port);
+    if (_listen_fd < 0) {
+        RTC_LOG(LS_WARNING) << "create listenfd failed";
+        return -1;
+    }
     // event_loop
     _io_watcher = _event_loop->CreateIoEvent(AcceptNewConnection, this);
     _event_loop->StartIOEvent(_io_watcher, _listen_fd, EventLoop::READ);
+    // worker
+    for (int i = 0; i < _options.worker_num; i++) {
+        if (!CreateWorker(i)) {
+            RTC_LOG(LS_WARNING) << "create worker failed";
+            return -1;
+        }
+    }
     return 0;
 }
 
