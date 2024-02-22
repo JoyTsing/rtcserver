@@ -1,6 +1,5 @@
 #include "server/signaling_work.h"
 #include "base/event_loop.h"
-#include "net/socket.h"
 #include "net/tcp_connection.h"
 #include <rtc_base/logging.h>
 namespace xrtc {
@@ -54,6 +53,7 @@ bool SignalingWorker::Notify(ssize_t msg) {
     ssize_t write_len = write(_notify_send_fd, &msg, sizeof(msg));
     return write_len == sizeof(msg);
 }
+
 bool SignalingWorker::NotifyNewConnection(int fd) {
     _conn_queue.Produce(fd);
     return Notify(SignalingWorker::NEW_CONNECTION);
@@ -73,7 +73,7 @@ void SignalingWorker::WorkerRecvNotify(
 void SignalingWorker::ConnectIOCall(
     EventLoop * /*el*/, IOWatcher * /*w*/, int fd, int events, void *data) {
     auto *worker = (SignalingWorker *)data;
-    if (events & EventLoop::READ) { worker->ReadEvent(fd); }
+    if (events == EventLoop::READ) { worker->ReadEvent(fd); }
 }
 
 void SignalingWorker::ReadEvent(int fd) {
