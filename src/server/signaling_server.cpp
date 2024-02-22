@@ -73,15 +73,15 @@ void SignalingServer::StopEvent() {
 void SignalingServer::AcceptNewConnection(
     EventLoop * /*el*/, IOWatcher * /*w*/, int fd, int /*events*/, void *data) {
     auto *server = (SignalingServer *)data;
-    auto *client_ip = new std::string();
+    std::string client_ip{};
     int conn_fd, conn_port;
-    conn_fd = TCPAccept(fd, client_ip, &conn_port);
+    conn_fd = TCPAccept(fd, client_ip, conn_port);
     if (conn_fd < 0) {
         RTC_LOG(LS_WARNING) << "accept new connection failed";
         return;
     }
     RTC_LOG(LS_INFO) << "accept new connection, fd:" << conn_fd
-                     << ", ip:" << client_ip->data() << ", port:" << conn_port;
+                     << ", ip:" << client_ip.data() << ", port:" << conn_port;
     server->DispatchConnection(conn_fd);
 }
 

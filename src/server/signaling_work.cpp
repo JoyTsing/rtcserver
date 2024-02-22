@@ -1,5 +1,7 @@
 #include "server/signaling_work.h"
 #include "base/event_loop.h"
+#include "net/socket.h"
+#include "net/tcp_connection.h"
 #include <rtc_base/logging.h>
 namespace xrtc {
 SignalingWorker::SignalingWorker(int worker_id)
@@ -68,6 +70,17 @@ void SignalingWorker::WorkerRecvNotify(
     worker->HandleNotify(msg);
 }
 
+void SignalingWorker::ConnectIOCall(
+    EventLoop * /*el*/, IOWatcher * /*w*/, int fd, int events, void *data) {
+    auto *worker = (SignalingWorker *)data;
+    if (events & EventLoop::READ) { worker->ReadEvent(fd); }
+}
+
+void SignalingWorker::ReadEvent(int fd) {
+    RTC_LOG(LS_INFO) << "worker read event, worker_id:" << _worker_id
+                     << ", fd:" << fd;
+}
+
 void SignalingWorker::HandleNotify(ssize_t msg) {
     if (msg == SignalingWorker::QUIT) {
         StopEvent();
@@ -98,6 +111,15 @@ void SignalingWorker::StopEvent() {
 void SignalingWorker::NewConnection(int fd) {
     RTC_LOG(LS_INFO) << "new connection, worker_id:" << _worker_id
                      << ", fd:" << fd;
+    if (fd < 0) {
+        RTC_LOG(LS_WARNING) << "invalid fd: " << fd;
+        return;
+    }
+
+    auto *conn = new TcpConnection(fd);
+    conn->io_watcher = _event_loop->CreateIoEvent(ConnectIOCall, conn);
+    _event_loop->StartIOEvent(conn->io_watcher, fd, EventLoop::READ);
+    _conn_pool[fd] = conn;
 }
 
 void SignalingWorker::Join() {

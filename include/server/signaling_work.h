@@ -1,7 +1,10 @@
 #pragma once
 #include "base/event_loop.h"
 #include "base/lock_free_queue.h"
+#include "net/tcp_connection.h"
 #include <thread>
+#include <unordered_map>
+
 namespace xrtc {
 class SignalingWorker {
   public:
@@ -21,6 +24,8 @@ class SignalingWorker {
     bool NotifyNewConnection(int fd);
 
   private:
+    static void
+    ConnectIOCall(EventLoop *el, IOWatcher *w, int fd, int events, void *data);
     static void WorkerRecvNotify(
         EventLoop *el, IOWatcher *w, int fd, int events, void *data);
 
@@ -28,6 +33,8 @@ class SignalingWorker {
     void HandleNotify(ssize_t msg);
     void StopEvent();
     void NewConnection(int fd);
+    // event
+    void ReadEvent(int fd);
 
   private:
     int _worker_id;
@@ -36,6 +43,7 @@ class SignalingWorker {
     // communicate with main thread
     int _notify_recv_fd = -1;
     int _notify_send_fd = -1;
+    std::unordered_map<int, TcpConnection *> _conn_pool{};
     IOWatcher *_pipe_watcher = nullptr;
     // thread
     std::thread *_thread = nullptr;

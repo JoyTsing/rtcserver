@@ -1,7 +1,9 @@
 #include "net/socket.h"
 #include "rtc_base/logging.h"
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <mutex>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -49,7 +51,7 @@ int CreateTcpServer(const std::string &addr, int port) {
     return socket;
 }
 
-int TCPAccept(int sock, std::string *addr, int *port) {
+int TCPAccept(int sock, std::string &addr, int &port) {
     struct sockaddr_in client_addr;
     socklen_t len = sizeof(client_addr);
     int client_sock = Accept(sock, (struct sockaddr *)&client_addr, &len);
@@ -58,10 +60,10 @@ int TCPAccept(int sock, std::string *addr, int *port) {
         return -1;
     }
     {
-        std::unique_lock<std::mutex> lock(__net_mutex);
-        strcpy(addr->data(), inet_ntoa(client_addr.sin_addr));
+        std::lock_guard<std::mutex> lock(__net_mutex);
+        strcpy(addr.data(), inet_ntoa(client_addr.sin_addr));
     }
-    *port = ntohs(client_addr.sin_port);
+    port = ntohs(client_addr.sin_port);
 
     return client_sock;
 }
@@ -79,4 +81,50 @@ int Accept(int sock, struct sockaddr *sa, socklen_t *len) {
     }
     return fd;
 }
+
+bool SetSockNoBlock(int sock) {
+    int flags = fcntl(sock, F_GETFL);
+    if (flags < 0) {
+        RTC_LOG(LS_WARNING)
+            << "fcntl(F_GETFL) failed, error:" << errno << ",fd: " << sock;
+        return false;
+    }
+
+    if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
+        RTC_LOG(LS_WARNING)
+            << "fcntl(F_SETFL) failed, error:" << errno << ", fd: " << sock;
+        return false;
+    }
+    return true;
+}
+
+bool SetSockNoDelay(int sock) {
+    int flag = 1;
+    int ret = setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+    if (ret < 0) {
+        RTC_LOG(LS_WARNING) << "setsockopt(TCP_NODELAY) failed, error:" << errno
+                            << ", fd: " << sock;
+        return false;
+    }
+    return true;
+}
+
+bool SockPeerAddr(int sock, std::string &addr, int &port) {
+    struct sockaddr_in client_addr;
+    socklen_t len;
+    if (-1 == getpeername(sock, (struct sockaddr *)&client_addr, &len)) {
+        RTC_LOG(LS_WARNING) << "getpeername failed, error:" << errno;
+        addr[0] = '?';
+        addr[1] = '\0';
+        port = 0;
+        return false;
+    }
+    {
+        std::lock_guard<std::mutex> lock(__net_mutex);
+        strcpy(addr.data(), inet_ntoa(client_addr.sin_addr));
+    }
+    port = ntohs(client_addr.sin_port);
+    return true;
+}
+
 } // namespace xrtc
