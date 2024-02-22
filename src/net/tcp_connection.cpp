@@ -17,6 +17,7 @@ TcpConnection::TcpConnection(int sock)
 }
 
 TcpConnection::~TcpConnection() {
+    sdsfree(read_buf);
 }
 
 } // namespace xrtc

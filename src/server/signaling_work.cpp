@@ -14,6 +14,9 @@ SignalingWorker::SignalingWorker(int worker_id)
 }
 
 SignalingWorker::~SignalingWorker() {
+    for (auto [_, conn] : _conn_pool) { CloseConnection(conn); }
+    _conn_pool.clear();
+
     delete _event_loop;
     _event_loop = nullptr;
 
