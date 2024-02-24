@@ -1,6 +1,7 @@
 #include "server/signaling_work.h"
 #include "base/event_loop.h"
 #include "json/reader.h"
+#include "init/init.h"
 #include "net/server_def.h"
 #include "net/socket.h"
 #include "net/tcp_connection.h"
@@ -119,7 +120,7 @@ void SignalingWorker::ReadEvent(int fd) {
         CloseConnection(conn);
         return;
     }
-    RTC_LOG(LS_INFO) << "socket read event ,len " << nread;
+    // RTC_LOG(LS_INFO) << "socket read event ,len " << nread;
 }
 
 void SignalingWorker::RemoveConnection(TcpConnection *conn) {
@@ -232,6 +233,7 @@ bool SignalingWorker::ProcessPushRequest(
                      << "] video[" << video
                      << "] signaling server push request";
 
+    // msg
     std::shared_ptr<RtcMessage> msg = std::make_shared<RtcMessage>();
     msg->cmdno = CMDNO_PUSH;
     msg->uid = uid;
@@ -239,8 +241,8 @@ bool SignalingWorker::ProcessPushRequest(
     msg->audio = audio;
     msg->video = video;
     msg->log_id = log_id;
-    // return g_server->SendRtcMessage(msg);
-    return true;
+
+    return g_rtc_server->SendRtcMessage(msg);
 }
 
 void SignalingWorker::ProcessTimeout(TcpConnection *conn) {

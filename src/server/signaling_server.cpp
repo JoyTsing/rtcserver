@@ -25,7 +25,7 @@ SignalingServer::~SignalingServer() {
 bool SignalingServer::CreateWorker(int i) {
     auto *worker = new SignalingWorker(i);
     worker->SetTimeOut(_options.connection_timeout);
-    // RTC_LOG(LS_INFO) << "create worker, worker_id:" << i;
+    RTC_LOG(LS_INFO) << "signaling server create worker, worker_id:" << i;
     if (!worker->Init()) {
         RTC_LOG(LS_WARNING) << "worker init failed, worker_id:" << i;
         return false;
