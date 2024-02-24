@@ -164,8 +164,8 @@ void SignalingWorker::WriteEvent(int fd) {
     if (conn->reply_list.empty()) {
         _event_loop->StopIOEvent(
             conn->io_watcher, conn->socket, EventLoop::WRITE);
-        RTC_LOG(LS_INFO) << "stop write event, fd: " << conn->socket
-                         << ", worker_id: " << _worker_id;
+        // RTC_LOG(LS_INFO) << "stop write event, fd: " << conn->socket
+        //                 << ", worker_id: " << _worker_id;
     }
 }
 
