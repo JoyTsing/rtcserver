@@ -1,5 +1,7 @@
 #pragma once
 #include "base/event_loop.h"
+#include "rtc_base/slice.h"
+#include <list>
 #include <rtc_base/sds.h>
 #include <string>
 #include <sys/types.h>
@@ -26,9 +28,11 @@ struct TcpConnection {
     // timestamp
     uint64_t last_interaction;
 
+    size_t cur_resp_pos = 0;
     size_t expected_bytes;
     size_t process_bytes;
     // buf
     sds read_buf;
+    std::list<rtc::Slice> reply_list;
 };
 } // namespace xrtc

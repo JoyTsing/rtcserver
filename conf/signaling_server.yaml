@@ -2,5 +2,5 @@ server:
   host: 127.0.0.1
   port: 9009
   worker_num: 6
-  #us
+  #us 10000000为10s
   connection_timeout: 10000000

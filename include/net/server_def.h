@@ -7,7 +7,7 @@
 #define CMDNO_ANSWER   3
 #define CMDNO_STOPPUSH 4
 #define CMDNO_STOPPULL 5
-
+#define MAX_RES_BUF    4096
 namespace xrtc {
 struct RtcMessage {
     int cmdno = -1;

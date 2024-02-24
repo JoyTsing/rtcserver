@@ -38,6 +38,7 @@ class SignalingWorker {
   private:
     static void
     ConnectIOCall(EventLoop *el, IOWatcher *w, int fd, int events, void *data);
+
     static void ConnectTimeCall(EventLoop *el, TimerWatcher *w, void *data);
 
     static void WorkerRecvNotify(
@@ -49,6 +50,7 @@ class SignalingWorker {
     void NewConnection(int fd);
     // event
     void ReadEvent(int fd);
+    void WriteEvent(int fd);
     bool ProcessRequest(
         TcpConnection *conn, const rtc::Slice &head, const rtc::Slice &body);
     void ResponseServerOffer(std::shared_ptr<RtcMessage> msg);
@@ -63,6 +65,7 @@ class SignalingWorker {
     void ProcessTimeout(TcpConnection *conn);
     bool ProcessPushRequest(
         TcpConnection *conn, const Json::Value &root, uint32_t log_id);
+    void HandleReply(TcpConnection *conn, const rtc::Slice &reply);
     // msg queue
     void PushMessage(const std::shared_ptr<RtcMessage> &msg);
     std::shared_ptr<RtcMessage> PopMessage();

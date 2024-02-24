@@ -3,29 +3,13 @@
 #include <libev/ev.h>
 namespace xrtc {
 
-int trans_to_libev(int event) {
-    switch (event) {
-        case EventLoop::READ:
-            return EV_READ;
-        case EventLoop::WRITE:
-            return EV_WRITE;
-        default:
-            break;
-    }
-    return 0;
-}
+#define TRANS_TO_EV_MASK(mask)                \
+    (((mask) & EventLoop::READ ? EV_READ : 0) \
+     | ((mask) & EventLoop::WRITE ? EV_WRITE : 0))
 
-int trans_from_libev(int event) {
-    switch (event) {
-        case EV_READ:
-            return EventLoop::READ;
-        case EV_WRITE:
-            return EventLoop::WRITE;
-        default:
-            break;
-    }
-    return 0;
-}
+#define TRANS_FROM_EV_MASK(mask)              \
+    (((mask) & EV_READ ? EventLoop::READ : 0) \
+     | ((mask) & EV_WRITE ? EventLoop::WRITE : 0))
 
 EventLoop::EventLoop(void *owner)
     : _loop(ev_loop_new(EVFLAG_AUTO)), owner(owner) {
@@ -50,7 +34,7 @@ void EventLoop::generic_io_callback(
     struct ev_loop * /*loop*/, struct ev_io *w, int events) {
     auto *watcher = (IOWatcher *)(w->data);
     watcher->call(
-        watcher->event_loop, watcher, w->fd, trans_from_libev(events),
+        watcher->event_loop, watcher, w->fd, TRANS_FROM_EV_MASK(events),
         watcher->data); // 之前传入的是w->data，运行没有问题但是结束时候有问题
 }
 
@@ -70,28 +54,28 @@ EventLoop::IOWatcher *EventLoop::CreateIoEvent(io_callback_t call, void *data) {
 void EventLoop::StartIOEvent(IOWatcher *w, int fd, int mask) {
     struct ev_io *io = w->io;
     if (ev_is_active(io)) {
-        int active_events = trans_from_libev(io->events);
+        int active_events = TRANS_FROM_EV_MASK(io->events);
         int new_events = active_events | mask;
         if (new_events == active_events) { return; }
         // add
-        int event = trans_to_libev(new_events);
+        int event = TRANS_TO_EV_MASK(new_events);
         ev_io_stop(_loop, io);
         ev_io_set(io, fd, event);
         ev_io_start(_loop, io);
     }
     // new event
-    int event = trans_to_libev(mask);
+    int event = TRANS_TO_EV_MASK(mask);
     ev_io_set(io, fd, event);
     ev_io_start(_loop, io);
 }
 
 void EventLoop::StopIOEvent(IOWatcher *w, int fd, int mask) {
     struct ev_io *io = w->io;
-    int active_events = trans_from_libev(io->events);
+    int active_events = TRANS_FROM_EV_MASK(io->events);
     int events = active_events & (~mask);
 
     if (events == active_events) { return; }
-    events = trans_to_libev(events);
+    events = TRANS_TO_EV_MASK(events);
     ev_io_stop(_loop, io);
     if (events != EV_NONE) {
         ev_io_set(io, fd, events);

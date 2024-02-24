@@ -141,4 +141,19 @@ ssize_t SocketReadData(int sock, char *buf, size_t len) {
     return nread;
 }
 
+ssize_t SocketWriteData(int sock, const char *buf, size_t len) {
+    ssize_t nwritten = write(sock, buf, len);
+    if (-1 == nwritten) {
+        if (EAGAIN == errno) {
+            nwritten = 0;
+        } else {
+            RTC_LOG(LS_WARNING)
+                << "sock write failed, errno: " << errno << ", fd: " << sock;
+            return -1;
+        }
+    }
+
+    return nwritten;
+}
+
 } // namespace xrtc

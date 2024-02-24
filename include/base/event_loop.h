@@ -1,33 +1,11 @@
 #pragma once
 
 #include <libev/ev.h>
-#include <string>
 #include <cstdint>
 namespace xrtc {
 class EventLoop {
   public:
-    // 需要增加的话在这里即可，宏展开自动维护
-#define _TRANS_FOREACH(f) f(READ) f(WRITE)
-
-    enum {
-#define _FUNCTION(name) name,
-        _TRANS_FOREACH(_FUNCTION)
-#undef _FUNCTION
-    };
-
-    static inline std::string event_name(int event) {
-        switch (event) {
-#define _FUNCTION(ev) \
-    case ev:          \
-        return #ev;
-            _TRANS_FOREACH(_FUNCTION)
-#undef _FUNCTION
-            default:
-                break;
-        }
-        return "unknown";
-    }
-#undef _TRANS_FOREACH
+    enum { READ = 0x1, WRITE = 0x2 };
 
   public:
     class IOWatcher;

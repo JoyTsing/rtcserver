@@ -1,7 +1,7 @@
 #include "server/signaling_work.h"
 #include "base/event_loop.h"
-#include "json/reader.h"
 #include "init/init.h"
+#include "json/reader.h"
 #include "net/server_def.h"
 #include "net/socket.h"
 #include "net/tcp_connection.h"
@@ -11,6 +11,7 @@
 #include <json/json.h>
 #include <memory>
 #include <rtc_base/logging.h>
+#include <rtc_base/zmalloc.h>
 #include <unistd.h>
 namespace xrtc {
 SignalingWorker::SignalingWorker(int worker_id)
@@ -94,7 +95,14 @@ void SignalingWorker::ConnectTimeCall(
 void SignalingWorker::ConnectIOCall(
     EventLoop * /*el*/, IOWatcher * /*w*/, int fd, int events, void *data) {
     auto *worker = (SignalingWorker *)data;
-    if (events == EventLoop::READ) { worker->ReadEvent(fd); }
+    if (events == EventLoop::READ) {
+        worker->ReadEvent(fd);
+        return;
+    }
+    if (events == EventLoop::WRITE) {
+        worker->WriteEvent(fd);
+        return;
+    }
 }
 
 void SignalingWorker::ReadEvent(int fd) {
@@ -121,6 +129,44 @@ void SignalingWorker::ReadEvent(int fd) {
         return;
     }
     // RTC_LOG(LS_INFO) << "socket read event ,len " << nread;
+}
+
+void SignalingWorker::WriteEvent(int fd) {
+    if (fd <= 0) { return; }
+
+    TcpConnection *conn = _conn_pool.at(fd);
+    if (!conn) { return; }
+    while (!conn->reply_list.empty()) {
+        rtc::Slice reply = conn->reply_list.front();
+        ssize_t nwrite = SocketWriteData(
+            fd, reply.data() + conn->cur_resp_pos,
+            reply.size() - conn->cur_resp_pos); // 可能多次写
+        if (nwrite < 0) {
+            RTC_LOG(LS_WARNING) << "socket write error, fd:" << fd;
+            CloseConnection(conn);
+            return;
+        }
+        if (nwrite == 0) {
+            RTC_LOG(LS_WARNING) << "write zero bytes, fd: " << conn->socket
+                                << ", worker_id: " << _worker_id;
+        } else if ((nwrite + conn->cur_resp_pos) >= reply.size()) {
+            // 写入完成
+            conn->reply_list.pop_front();
+            zfree((void *)reply.data());
+            conn->cur_resp_pos = 0;
+            RTC_LOG(LS_INFO) << "write finished, fd: " << conn->socket
+                             << ", worker_id: " << _worker_id;
+        } else {
+            conn->cur_resp_pos += nwrite;
+        }
+    }
+    conn->last_interaction = _event_loop->Now();
+    if (conn->reply_list.empty()) {
+        _event_loop->StopIOEvent(
+            conn->io_watcher, conn->socket, EventLoop::WRITE);
+        RTC_LOG(LS_INFO) << "stop write event, fd: " << conn->socket
+                         << ", worker_id: " << _worker_id;
+    }
 }
 
 void SignalingWorker::RemoveConnection(TcpConnection *conn) {
@@ -168,7 +214,47 @@ void SignalingWorker::ProcessRtcMsg() {
 }
 
 void SignalingWorker::ResponseServerOffer(std::shared_ptr<RtcMessage> msg) {
-    RTC_LOG(LS_INFO) << "=====response server offer :" << msg->sdp;
+    auto *conn = (TcpConnection *)(msg->conn);
+    if (!conn) { return; }
+    int fd = msg->fd;
+    if (_conn_pool.at(fd) != conn) { return; }
+    // make head
+    auto *head = (tcp_head_t *)(conn->read_buf);
+    rtc::Slice header(conn->read_buf, kHeadSize);
+    char *buf = (char *)zmalloc(kHeadSize + MAX_RES_BUF);
+    if (!buf) {
+        RTC_LOG(LS_WARNING) << "zmalloc error, log_id: " << head->log_id;
+        return;
+    }
+    memcpy(buf, header.data(), header.size());
+    auto *res_head = (tcp_head_t *)buf;
+    // make body
+    Json::Value res_root;
+    res_root["err_no"] = msg->err_no;
+    if (msg->err_no != 0) {
+        res_root["err_msg"] = "process error";
+        res_root["offer"] = "";
+    } else {
+        res_root["err_msg"] = "success";
+        res_root["offer"] = msg->sdp;
+    }
+
+    Json::StreamWriterBuilder write_builder;
+    write_builder.settings_["indentation"] = "";
+    std::string json_data = Json::writeString(write_builder, res_root);
+    RTC_LOG(LS_INFO) << "response body: " << json_data;
+
+    res_head->body_len = json_data.size();
+    (void)snprintf(buf + kHeadSize, MAX_RES_BUF, "%s", json_data.c_str());
+
+    rtc::Slice reply(buf, kHeadSize + res_head->body_len);
+    HandleReply(conn, reply);
+}
+
+void SignalingWorker::HandleReply(
+    TcpConnection *conn, const rtc::Slice &reply) {
+    conn->reply_list.push_back(reply);
+    _event_loop->StartIOEvent(conn->io_watcher, conn->socket, EventLoop::WRITE);
 }
 
 bool SignalingWorker::ProcessReadBuffer(TcpConnection *conn) {
