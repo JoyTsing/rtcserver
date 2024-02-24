@@ -3,4 +3,4 @@ server:
   port: 9009
   worker_num: 6
   #us
-  connection_timeout: 5000000
+  connection_timeout: 10000000

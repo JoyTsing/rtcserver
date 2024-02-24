@@ -1,0 +1,2 @@
+server:
+  worker_num: 6

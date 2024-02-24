@@ -6,6 +6,7 @@ void bind_signal() {
                          << ", stop signaling server";
         if (sig == SIGINT || sig == SIGTERM) {
             if (xrtc::g_signaling_server) { xrtc::g_signaling_server->Stop(); }
+            if (xrtc::g_rtc_server) { xrtc::g_rtc_server->Stop(); }
         }
     };
     (void)signal(SIGINT, func);
@@ -17,5 +18,6 @@ int main() {
     if (!xrtc::server_init()) { return -1; }
     bind_signal();
     xrtc::g_signaling_server->Join();
+    xrtc::g_rtc_server->Join();
     return 0;
 }

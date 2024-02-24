@@ -24,7 +24,7 @@ class SignalingServer {
     SignalingServer();
     ~SignalingServer();
 
-    int Init(const std::string &conf_file);
+    bool Init(const std::string &conf_file);
     bool Start();
     void Stop();
     bool Notify(ssize_t msg);

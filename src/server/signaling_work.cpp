@@ -1,10 +1,14 @@
 #include "server/signaling_work.h"
 #include "base/event_loop.h"
+#include "json/reader.h"
+#include "net/server_def.h"
 #include "net/socket.h"
 #include "net/tcp_connection.h"
 #include "net/tcp_head.h"
 #include "rtc_base/sds.h"
 #include "rtc_base/slice.h"
+#include <json/json.h>
+#include <memory>
 #include <rtc_base/logging.h>
 #include <unistd.h>
 namespace xrtc {
@@ -175,8 +179,67 @@ bool SignalingWorker::ProcessReadBuffer(TcpConnection *conn) {
 
 bool SignalingWorker::ProcessRequest(
     TcpConnection *conn, const rtc::Slice &head, const rtc::Slice &body) {
-    RTC_LOG(LS_INFO) << "process request, worker_id:" << _worker_id
-                     << "body: " << body.data();
+    RTC_LOG(LS_INFO) << "process request, worker_id: " << _worker_id
+                     << " body: " << body.data();
+    auto *head_t = (tcp_head_t *)head.data();
+    // json
+    Json::CharReaderBuilder rbuilder;
+    std::unique_ptr<Json::CharReader> reader(rbuilder.newCharReader());
+    Json::Value root;
+    JSONCPP_STRING err;
+    reader->parse(body.data(), body.data() + body.size(), &root, &err);
+    if (!err.empty()) {
+        RTC_LOG(LS_WARNING) << "parse json failed, err:" << err
+                            << " ,log_id: " << head_t->log_id;
+        return false;
+    }
+    int cmdno;
+    try {
+        cmdno = root["cmd_no"].asInt();
+    } catch (Json::Exception &e) {
+        RTC_LOG(LS_WARNING)
+            << "no cmdno field in body, log_id: " << head_t->log_id;
+        return -1;
+    }
+    // process
+    switch (cmdno) {
+        case CMDNO_PUSH:
+            return ProcessPushRequest(conn, root, head_t->log_id);
+        default:
+            break;
+    }
+    return true;
+}
+
+bool SignalingWorker::ProcessPushRequest(
+    TcpConnection *conn, const Json::Value &root, uint32_t log_id) {
+    uint64_t uid;
+    std::string stream_name;
+    int audio;
+    int video;
+    try {
+        uid = root["uid"].asUInt64();
+        stream_name = root["stream_name"].asString();
+        audio = root["audio"].asInt();
+        video = root["video"].asInt();
+    } catch (Json::Exception &e) {
+        RTC_LOG(LS_WARNING)
+            << "parse json body error: " << e.what() << "log_id: " << log_id;
+        return false;
+    }
+    RTC_LOG(LS_INFO) << "cmd_no[" << CMDNO_PUSH << "] uid[" << uid
+                     << "] stream_name[" << stream_name << "] auido[" << audio
+                     << "] video[" << video
+                     << "] signaling server push request";
+
+    std::shared_ptr<RtcMessage> msg = std::make_shared<RtcMessage>();
+    msg->cmdno = CMDNO_PUSH;
+    msg->uid = uid;
+    msg->stream_name = stream_name;
+    msg->audio = audio;
+    msg->video = video;
+    msg->log_id = log_id;
+    // return g_server->SendRtcMessage(msg);
     return true;
 }
 

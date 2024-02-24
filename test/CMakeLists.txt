@@ -20,5 +20,5 @@ foreach(v ${all_tests})
     string(REGEX REPLACE ".cpp" "" target_name ${target_name})
 
     add_executable(${target_name} ${all_src} ${v})
-    target_link_libraries(${target_name} libyaml-cpp.a libev.a libabsl_strings.a libabsl_throw_delegate.a librtcbase.a)
+    target_link_libraries(${target_name} libjsoncpp.a libyaml-cpp.a libev.a libabsl_strings.a libabsl_throw_delegate.a librtcbase.a)
 endforeach()

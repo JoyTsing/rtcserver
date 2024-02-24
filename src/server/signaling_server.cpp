@@ -103,10 +103,10 @@ void SignalingServer::ServerRecvNotify(
     server->HandleNotify(msg);
 }
 
-int SignalingServer::Init(const std::string &conf_file) {
+bool SignalingServer::Init(const std::string &conf_file) {
     if (conf_file.empty()) {
         RTC_LOG(LS_WARNING) << "signaling server conf file is empty";
-        return -1;
+        return false;
     }
     // config
     YAML::Node config = YAML::LoadFile(conf_file);
@@ -119,7 +119,7 @@ int SignalingServer::Init(const std::string &conf_file) {
     } catch (YAML::Exception &e) {
         RTC_LOG(LS_WARNING)
             << "catch a YAML exception in signaling, message:" << e.msg;
-        return -1;
+        return false;
     }
     // thread communication
     int fds[2];
@@ -136,7 +136,7 @@ int SignalingServer::Init(const std::string &conf_file) {
     _listen_fd = CreateTcpServer(_options.host, _options.port);
     if (_listen_fd < 0) {
         RTC_LOG(LS_WARNING) << "create listenfd failed";
-        return -1;
+        return false;
     }
     // event_loop
     _io_watcher = _event_loop->CreateIoEvent(AcceptNewConnection, this);
@@ -145,10 +145,10 @@ int SignalingServer::Init(const std::string &conf_file) {
     for (int i = 0; i < _options.worker_num; i++) {
         if (!CreateWorker(i)) {
             RTC_LOG(LS_WARNING) << "create worker failed";
-            return -1;
+            return false;
         }
     }
-    return 0;
+    return true;
 }
 
 bool SignalingServer::Start() {

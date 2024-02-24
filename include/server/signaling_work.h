@@ -3,6 +3,7 @@
 #include "base/lock_free_queue.h"
 #include "net/tcp_connection.h"
 #include "rtc_base/slice.h"
+#include <json/json.h>
 #include <thread>
 #include <unistd.h>
 #include <unordered_map>
@@ -51,8 +52,9 @@ class SignalingWorker {
 
     // msg
     bool ProcessReadBuffer(TcpConnection *conn);
-
     void ProcessTimeout(TcpConnection *conn);
+    bool ProcessPushRequest(
+        TcpConnection *conn, const Json::Value &root, uint32_t log_id);
 
   private:
     // option
