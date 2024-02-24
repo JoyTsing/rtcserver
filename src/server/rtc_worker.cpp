@@ -1,5 +1,6 @@
 #include "server/rtc_worker.h"
 #include "base/event_loop.h"
+#include "server/signaling_work.h"
 #include <rtc_base/logging.h>
 #include <unistd.h>
 namespace xrtc {
@@ -97,12 +98,12 @@ void RtcWorker::StopEvent() {
 }
 
 void RtcWorker::ProcessPush(std::shared_ptr<RtcMessage> msg) {
-    // std::string offer = "offer";
+    std::string offer = "offer";
 
-    // msg->sdp = offer;
+    msg->sdp = offer;
 
-    // auto *worker = (SignalingWorker *)(msg->worker);
-    // if (worker) { worker->send_rtc_msg(msg); }
+    auto *worker = (SignalingWorker *)(msg->worker);
+    if (worker) { worker->SendRtcMessage(msg); }
 }
 
 void RtcWorker::ProcessRtcMsg() {

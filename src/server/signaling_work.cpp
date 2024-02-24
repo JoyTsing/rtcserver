@@ -147,6 +147,28 @@ void SignalingWorker::HandleNotify(ssize_t msg) {
         if (_conn_queue.Consume(conn_fd)) { NewConnection(conn_fd); }
         return;
     }
+    if (msg == SignalingWorker::RTC_MSG) {
+        ProcessRtcMsg();
+        return;
+    }
+}
+
+void SignalingWorker::ProcessRtcMsg() {
+    std::shared_ptr<RtcMessage> msg = PopMessage();
+    if (!msg) { return; }
+    switch (msg->cmdno) {
+        case CMDNO_PUSH:
+            ResponseServerOffer(msg);
+            break;
+        default:
+            RTC_LOG(LS_WARNING) << "unknown cmdno: " << msg->cmdno
+                                << ", log_id: " << msg->log_id;
+            break;
+    }
+}
+
+void SignalingWorker::ResponseServerOffer(std::shared_ptr<RtcMessage> msg) {
+    RTC_LOG(LS_INFO) << "=====response server offer :" << msg->sdp;
 }
 
 bool SignalingWorker::ProcessReadBuffer(TcpConnection *conn) {
@@ -241,6 +263,9 @@ bool SignalingWorker::ProcessPushRequest(
     msg->audio = audio;
     msg->video = video;
     msg->log_id = log_id;
+    msg->worker = this;
+    msg->conn = conn;
+    msg->fd = conn->socket;
 
     return g_rtc_server->SendRtcMessage(msg);
 }
@@ -290,6 +315,25 @@ void SignalingWorker::NewConnection(int fd) {
 
 void SignalingWorker::Join() {
     if (_thread && _thread->joinable()) { _thread->join(); }
+}
+
+void SignalingWorker::PushMessage(const std::shared_ptr<RtcMessage> &msg) {
+    std::unique_lock<std::mutex> lock(_q_msg_mtx);
+    _q_msg.push(msg);
+}
+
+std::shared_ptr<RtcMessage> SignalingWorker::PopMessage() {
+    std::unique_lock<std::mutex> lock(_q_msg_mtx);
+    if (_q_msg.empty()) { return nullptr; }
+
+    std::shared_ptr<RtcMessage> msg = _q_msg.front();
+    _q_msg.pop();
+    return msg;
+}
+
+bool SignalingWorker::SendRtcMessage(const std::shared_ptr<RtcMessage> &msg) {
+    PushMessage(msg);
+    return Notify(RTC_MSG);
 }
 
 void SignalingWorker::SetTimeOut(uint64_t usec) {

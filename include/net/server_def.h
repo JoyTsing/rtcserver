@@ -16,5 +16,12 @@ struct RtcMessage {
     int audio = 0;
     int video = 0;
     uint32_t log_id = 0;
+
+    // body
+    void *worker = nullptr;
+    void *conn = nullptr;
+    std::string sdp; // res
+    int fd = 0;
+    int err_no = 0;
 };
 } // namespace xrtc
